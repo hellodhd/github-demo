@@ -9,4 +9,6 @@
 参考资料:
 1. https://www.jianshu.com/p/9b1d805fa36d
 
-markdown 的中文文档：https://markdown-zh.readthedocs.io/en/latest/
+2. markdown 的中文文档：https://markdown-zh.readthedocs.io/en/latest/
+
+3. 广而学之
