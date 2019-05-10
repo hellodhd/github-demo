@@ -362,7 +362,7 @@ ___
 
 ```
 Typora[^1]
-[^1]A markdown editor
+[^1]A markdown editor1
 ```
 
 - 效果
