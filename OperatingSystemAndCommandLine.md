@@ -116,13 +116,958 @@ cudnn 版本
 cat /usr/local/cuda/include/cudnn.h | grep CUDNN_MAJOR -A 2
 ```
 
+## 1.2 MakeFile（服务器、开发板）
 
+### 1.2.1 make makefile cmake qmake区别
+
+1. gcc是GNU Compiler Collection（就是GNU编译器套件），也可以简单认为是编译器，它可以编译很多种编程语言（括C、C++、Objective-C、Fortran、Java等等）。
+
+   编译器套件
+
+2. 当你的程序只有一个源文件时，直接就可以用gcc命令编译它。
+
+3. 但是当你的程序包含很多个源文件时，用gcc命令逐个去编译时，你就很容易混乱而且工作量大。
+
+4. 所以出现了make工具
+   make工具可以看成是一个智能的批处理工具，它本身并没有编译和链接的功能，而是用类似于批处理的方式：通过调用makefile文件中用户指定的命令来进行编译和链接的。
+
+   工具
+
+5. makefile是什么？简单的说就像一首歌的乐谱，make工具就像指挥家，指挥家根据乐谱指挥整个乐团怎么样演奏，make工具就根据makefile中的命令进行编译和链接的。
+
+6. makefile命令中就包含了调用gcc（也可以是别的编译器）去编译某个源文件的命令。
+
+7. makefile在一些简单的工程完全可以人工手下，但是当工程非常大的时候，手写makefile也是非常麻烦的，如果换了个平台makefile又要重新修改。
+
+8. 这时候就出现了Cmake这个工具，cmake就可以更加简单的生成makefile文件给上面那个make用。当然cmake还有其他功能，就是可以跨平台生成对应平台能用的makefile，你不用再自己去修改了。
+
+   项目管理工具
+
+9. 可是cmake根据什么生成makefile呢？它又要根据一个叫CMakeLists.txt文件（学名：`组态档`）去生成makefile。
+
+10. 到最后CMakeLists.txt文件谁写啊？亲，是你自己手写的。
+
+11. 当然如果你用IDE，类似VS这些一般它都能帮你弄好了，你只需要按一下那个三角形。
+
+12. 接着是qmake，qmake是什么，先说一下Qt这个东西。
+
+    Qt是跨平台C++图形用户界面应用程序开发框架。它既可以开发GUI程序，也可用于开发非GUI程序，比如控制台工具和服务器。
+
+    简单的说就是C++的第三方库，使用这个库你可以很容易生成windows，Linux，MAC os等等平台的图形界面。现在的Qt还包含了开发各种软件一般需要用到的功能模块（网络，数据库，XML，多线程啊等等），比你直接用C++（只带标准内裤那种）要方便和简单。
+
+    Qt专用项目管理工具
+
+13. 你可以用Qt简简单单就实现非常复杂的功能，是因为Qt对C++进行了扩展，你写一行代码，Qt在背后帮你写了几百上千行，而这些多出来的代码就是靠Qt专有的moc编译器（The Meta-Object Compiler）和uic编译器（User Interface Complier）来重新翻译你那一行代码。
+
+    问题来了，你在进行程序编译前就必须先调用moc和uic对Qt源文件进行预处理，然后再调用编译器进行编译。上面说的那种普通makefile文件是不适用的，它没办法对qt源文件进行预处理。所以qmake就产生了。
+
+14. qmake工具就是Qt公司制造出来，用来生成Qt 专用makefile文件，这种makefile文件就能自动智能调用moc和uic对源程序进行预处理和编译。qmake当然必须也是跨平台的，跟cmake一样能对应各种平台生成对应makefile文件。
+
+15. qmake是根据Qt 工程文件（.pro）来生成对应的makefile的。工程文件（.pro）相对来说比较简单，一般工程你都可以自己手写，但是一般都是由Qt的开发环境 Qt Creator自动生成的，你还是只需要按下那个邪恶三角形就完事了。
+
+    .pro
+
+16. 还没有完，由于qmake很简单很好用又支持跨平台，而且是可以独立于它的IDE，所以你也可以用在非Qt工程上面，照样可以生成普通的makefile，只要在pro文件中加入CONFIG -= qt  就可以了。
+
+17. 这样qmake和cmake有什么区别？不好意思，cmake也是同样支持Qt程序的，cmake也能生成针对qt 程序的那种特殊makefile，只是cmake的CMakeLists.txt 写起来相对与qmake的pro文件复杂点。
+
+    qmake 是为 Qt 量身打造的，使用起来非常方便，但是cmake功能比qmake强大。 一般的Qt工程你就直接使用qmake就可以了，cmake的强大功能一般人是用不到的。
+
+    当你的工程非常大的时候，又有qt部分的子工程，又有其他语言的部分子工程，据说用cmake会方便，我也没试过。
+
+### 1.2.2 makefile
+
+Makefile文件为：
+
+```text
+VERSION = 1.0.0     #程序版本号  
+
+SOURCE = $(wildcard ./src/*.c)  #获取所有的.c文件  
+OBJ = $(patsubst %.c, %.o, $(SOURCE))   #将.c文件转为.o文件  
+INCLUDES = -I./h    #头文件路径  
+
+LIBS = -ldylib      #库文件名字  
+LIB_PATH = -L./lib  #库文件地址  
+
+DEBUG = -D_MACRO    #宏定义  
+CFLAGS = -Wall -c   #编译标志位  
+
+TARGET = app  
+CC = gcc  
+
+$(TARGET): $(OBJ)     
+    @mkdir -p output/   #创建一个目录，用于存放已编译的目标  
+    $(CC) $(OBJ) $(LIB_PATH) $(LIBS) -o output/$(TARGET).$(VERSION)  
+
+%.o: %.c  
+    $(CC) $(INCLUDES) $(DEBUG) $(CFLAGS) $< -o $@  
+
+.PHONY: clean  
+clean:  
+    rm -rf $(OBJ) output/   
+```
+
+库文件说明：
+
+库文件名称为libdylib.so，里面只有一个函数：dynamic_lib_call()，它就输出一句话：this is a function in dynamic library。
+
+**3. Makefile所包含内容**
+
+**3.1 程序版本**
+
+软件开发过程中，会产生多个版本程序，通常会在程序末尾加上版本号后缀。
+
+```text
+VERSION = 1.0.0 #定义  
+$(CC) $(OBJ) $(LIB_PATH) $(LIBS) -o output/$(TARGET).$(VERSION) #使用  
+```
+
+**3.2 头文件**
+
+由于.c文件与.h文件分开在不同目录下，所以应指定头文件路径。
+
+```text
+INCLUDES = -I./h   
+```
+
+**3.3 宏定义**
+
+在代码调试的过程中，我们通常会加个宏定义来控制此段代码是否被编译，比如：
+
+```text
+#ifdef _MACRO  
+    printf("macro test\n");  
+#endif  
+```
+
+具体的宏我们可不定义在代码里，可在Makefile里指定，比如：
+
+```text
+DEBUG = -D_MACRO    #定义  
+$(CC) $(INCLUDES) $(DEBUG) $(CFLAGS) $< -o $@    #使用  
+```
+
+**3.4 编译选项**
+
+当编译选项较多时，我们通常会把它单独拿出来，比如：
+
+```text
+CFLAGS = -Wall -c       #定义  
+$(CC) $(INCLUDES) $(DEBUG) $(CFLAGS) $< -o $@    #使用  
+```
+
+**3.5 库**
+
+代码里如果要使用到库，我们可以将库名字和路径分别拿出来，比如：
+
+```text
+LIBS = -ldylib          #库文件名字  
+LIB_PATH = -L./lib      #库文件地址  
+$(CC) $(OBJ) $(LIB_PATH) $(LIBS) -o output/$(TARGET).$(VERSION) #使用  
+```
+
+**3.6 output目录**
+
+如果不想把生成的程序与源文件混在一起，可将生成的程序单独放在一个output目录，比如：
+
+```text
+$(TARGET): $(OBJ)  
+        @mkdir -p output/       #创建一个目录，用于存放已编译的目标  
+        $(CC) $(OBJ) $(LIB_PATH) $(LIBS) -o output/$(TARGET).$(VERSION)  
+```
+
+**4. 编译执行结果**
+
+<img src="https://pic1.zhimg.com/50/v2-a8d0ba77d79eae5b09b88f77631dc784_hd.jpg" data-caption="" data-size="normal" data-rawwidth="874" data-rawheight="182" data-default-watermark-src="https://pic2.zhimg.com/50/v2-1c2bd5b38b2637f3a394510f6810eb1c_hd.jpg" class="origin_image zh-lightbox-thumb" width="874" data-original="https://pic1.zhimg.com/v2-a8d0ba77d79eae5b09b88f77631dc784_r.jpg"/>
+
+
+
+### 1.2.3 CMake 
+
+cmake打包
+
+
+
+
+
+
+
+https://zhuanlan.zhihu.com/p/33562243
+
+
+
+
+
+### 1.2.4 .a和.so （`程序员的自我修养`得好好看看）
+
+喜欢用静态库的一个主要原因是因为懒，因为静态库什么都不用设置。
+静态库面临这么多重大问题，居然没有人提。
+1、如果静态库中有全局变量，那么在几个模块中使用，将会导致全局变量有不同的值，这是非常严重的问题。
+2、静态库编译时，不会进行链接检查，所以这么多静态库的问题，在生成静态库阶段检查不出来。
+3、几个模块，引用同一静态库，如果有一模块没有编译到，会引起巨大的差异导致问题。
+动态库最大的好处是什么，不仅仅是代码共享，更重要的是“模块化”。
+
+
+
+#### 1.2.4.1 原理
+
+```text
+什么是库？
+```
+
+库是写好的现有的，成熟的，可以复用的代码。**现实中每个程序都要依赖很多基础的底层库，不可能每个人的代码都从零开始，因此库的存在意义非同寻常**。
+
+本质上来说库是一种可执行代码的二进制形式，可以被操作系统载入内存执行。**库有两种：静态库（****.a、.lib）和动态库（.so、.dll）。  windows上对应的是.lib .dll linux上对应的是.a .so**
+
+在这里先介绍下Linux下的gcc编译的几个选项
+
+```text
+g++ -c hellospeak.cpp
+```
+
+会将hellospeak.cpp  选项 -c 用来告诉编译器编译源代码但不要执行链接，输出结果为对象文件。文件默认名与源码文件名相同，只是将其后缀变为 .o。例如，上面的命令将编译源码文件hellospeak.cpp 并生成对象文件 hellospeak.o；
+
+下面这条命令将上述两个源码文件编译链接成一个单一的可执行程序： 
+
+```text
+$ g++ hellospeak.cpp speak.cpp -o hellospeak
+```
+
+如果没有-o和后面的参数，编译器采用默认的 a.out
+
+本例中就会生成hellospeak 这样的可执行程序
+
+所谓静态、动态是指链接。回顾一下，将一个程序编译成可执行程序的步骤：
+
+图：编译过程
+
+<img src="https://pic2.zhimg.com/50/72b693726d70eea37aacbb93d8d40a43_hd.jpg" data-rawwidth="554" data-rawheight="263" class="origin_image zh-lightbox-thumb" width="554" data-original="https://pic2.zhimg.com/72b693726d70eea37aacbb93d8d40a43_r.jpg"/>
+
+静态库
+
+之所以成为【静态库】，**是因为在链接阶段，会将汇编生成的目标文件****.o与引用到的库一起链接打包到可执行文件中。因此对应的链接方式称为静态链接。**
+
+试想一下，静态库与汇编生成的目标文件一起链接为可执行文件，**那么静态库必定跟****.o****文件格式相似**。其实一个静态库可以简单看成是**一组目标文件（****.o/.obj****文件）的集合**，即很多目标文件经过压缩打包后形成的一个文件。静态库特点总结：
+
+**l  静态库对函数库的链接是放在编译时期完成的。**
+
+**l  程序在运行时与函数库再无瓜葛，移植方便。**
+
+**l  浪费空间和资源，因为所有相关的目标文件与牵涉到的函数库被链接合成一个可执行文件。**
+
+Linux下创建与使用静态库
+
+Linux静态库命名规则
+
+Linux静态库命名规范，必须是"lib[your_library_name].a"：lib为前缀，中间是静态库名，扩展名为.a。
+
+创建静态库（.a）
+
+通过上面的流程可以知道，Linux创建静态库过程如下：
+
+l  首先，将代码文件编译成目标文件.o（StaticMath.o）
+
+**g++ -c StaticMath.cpp**
+
+注意带参数-c，否则直接编译为可执行文件
+
+l  然后，通过ar工具将目标文件打包成.a静态库文件
+
+**ar -crv libstaticmath.a StaticMath.o**
+
+生成静态库**libstaticmath****.a**。
+
+<img src="https://pic1.zhimg.com/50/f798fdffbee291d83ad26a08ed1b28ac_hd.jpg" data-rawwidth="554" data-rawheight="180" class="origin_image zh-lightbox-thumb" width="554" data-original="https://pic1.zhimg.com/f798fdffbee291d83ad26a08ed1b28ac_r.jpg"/>
+
+-------------------------------分割线------------------------
+
+动态库
+
+通过上面的介绍发现静态库，容易使用和理解，也达到了代码复用的目的，那为什么还需要动态库呢？
+
+为什么还需要动态库？
+
+为什么需要动态库，其实也是静态库的特点导致。
+
+l  空间浪费是静态库的一个问题。
+
+<img src="https://pic2.zhimg.com/50/6aac2e2dc8faa8d1008f5320a7a83f5d_hd.jpg" data-rawwidth="483" data-rawheight="413" class="origin_image zh-lightbox-thumb" width="483" data-original="https://pic2.zhimg.com/6aac2e2dc8faa8d1008f5320a7a83f5d_r.jpg"/>
+
+另一个问题是静态库对程序的更新、部署和发布页会带来麻烦。如果静态库liba.lib更新了，所以使用它的应用程序都需要重新编译、发布给用户（对于玩家来说，可能是一个很小的改动，却导致整个程序重新下载，**全量更新**）。
+
+动态库在程序编译时并不会被连接到目标代码中，而是在程序运行是才被载入。**不同的应用程序如果调用相同的库，那么在内存里只需要有一份该共享库的实例**，规避了空间浪费问题。动态库在程序运行是才被载入，也解决了静态库对程序的更新、部署和发布页会带来麻烦。用户只需要更新动态库即可，**增量更新**。
+
+<img src="https://pic3.zhimg.com/50/73f097608fecb37ffc4128273341376e_hd.jpg" data-rawwidth="459" data-rawheight="404" class="origin_image zh-lightbox-thumb" width="459" data-original="https://pic3.zhimg.com/73f097608fecb37ffc4128273341376e_r.jpg"/>
+
+动态库特点总结：
+
+l  动态库把对一些库函数的链接载入推迟到程序运行的时期。
+
+l  可以实现进程之间的资源共享。（因此动态库也称为共享库）
+
+l  将一些程序升级变得简单。
+
+l  甚至可以真正做到链接载入完全由程序员在程序代码中控制（**显示调用**）。
+
+Window与Linux执行文件格式不同，在创建动态库的时候有一些差异。
+
+l  在Windows系统下的执行文件格式是PE格式，动态库需要一个**DllMain**函数做出初始化的入口，通常在导出函数的声明时需要有_declspec(dllexport)**关键字**。
+
+l  Linux下gcc编译的执行文件默认是ELF格式，**不需要初始化入口，亦不需要函数做特别的声明，**编写比较方便。
+
+与创建静态库不同的是，不需要打包工具（ar、lib.exe），直接使用编译器即可创建动态库。
+
+
+
+### 1.2.5 GDB
+
+## **1.GDB 相关概念**
+
+GDB, 是 The GNU Project Debugger 的缩写, 是 Linux 下功能全面的调试工具。GDB 支持断点、单步执行、打印变量、观察变量、查看寄存器、查看堆栈等调试手段。在 Linux 环境软件开发中，GDB 是主要的调试工具，用来调试 C 和 C++ 程序。
+
+## **2.GDB 的进入和退出**
+
+如果要调试程序，需要在 gcc 编译可执行程序时加上 -g 参数，首先我们编译 bugging.c 程序，生成可执行文件：
+
+```text
+gcc -g -o bugging bugging.c
+```
+
+其中 -o 指定输出文件名, 实验楼的环境是 64 位的 Ubuntu 14.04，所以默认会编译为 64 位的程序。
+
+输入 gdb bugging 进入 gdb 调试 bugging 程序的界面：
+
+```text
+gdb bugging
+```
+
+在 gdb 命令行界面，输入run 执行待调试程序：
+
+```text
+(gdb) run
+```
+
+在 gdb 命令行界面，输入quit 退出 gdb：
+
+```text
+(gdb) quit
+```
+
+上述步骤的操作截图如下：
+
+![img](assets/v2-97fd94455a982960e454f7d5a887f255_hd.jpg)
+
+## **3.GDB 命令行界面使用技巧**
+
+## **命令补全**
+
+任何时候都可以使用 TAB 进行补全，如果只有一个待选选项则直接补全；否则会列出可选选项，继续键入命令，同时结合 TAB 即可快速输入命令。
+
+## **部分 gdb 常用命令一览表**
+
+**命令简写形式说明**listl查看源码backtracebt、where打印函数栈信息nextn执行下一行steps一次执行一行，遇到函数会进入finish运行到函数结束continuec继续运行breakb设置断点info breakpoints显示断点信息deleted删除断点printp打印表达式的值runr启动程序untilu执行到指定行infoi显示信息helph帮助信息
+
+## **查询用法**
+
+在 gdb 命令行界面，使用 (gdb) help command 可以查看命令的用法。
+
+## **执行 Shell 命令**
+
+在 gdb 命令行界面可以执行外部的 Shell 命令：
+
+```text
+(gdb) !shell 命令
+```
+
+例如查看当前目录的文件：
+
+![img](assets/v2-c08a0098a0308dc8e91b5be95adad6f7_hd.jpg)
+
+## **二、GDB 断点**
+
+## **1.重新进入 debugging 调试界面**
+
+```text
+gdb bugging
+```
+
+## **2.查看源码**
+
+*list* 命令用来显示源文件中的代码。
+
+## **通过行号查看源码**
+
+list 行号，显示某一行附近的代码：
+
+![img](assets/v2-cfd983739a622d3933b2a8924f85fde2_hd.png)
+
+list 文件名 : 行号，显示某一个文件某一行附近的代码，用于多个源文件的情况。
+
+## **通过函数查看源码**
+
+list 函数名，显示某个函数附近的代码：
+
+![img](assets/v2-efee1d5dd29f547ce2702a57489266bd_hd.png)
+
+list 文件名 : 函数名，显示某一个文件某个函数附近的代码，用于多个源文件的情况。
+
+## **3 设置断点**
+
+*break* 命令用来设置断点。
+
+## **通过行号设置断点**
+
+break 行号，断点设置在该行开始处，**注意：该行代码未被执行**：
+
+![img](assets/v2-cbf30eb9d44b22657d2dc29001af516a_hd.png)
+
+break 文件名 : 行号，适用于有多个源文件的情况。
+
+## **通过函数设置断点**
+
+break 函数名，断点设置在该函数的开始处，**断点所在行未被执行**：
+
+![img](assets/v2-cf12626b4f41022b7ee99a515311de17_hd.png)
+
+break 文件名 : 函数名，适用于有多个源文件的情况。
+
+## **4 查看断点信息**
+
+*info breakpoints* 命令用于显示当前断点信息。
+
+![img](assets/v2-315b1ecf67eb0057124fab767cc25dca_hd.png)
+
+其中每一项的信息：
+
+- Num 列代表断点编号，该编号可以作为 delete/enalbe/disable 等控制断点命令的参数
+- Type 列代表断点类型，一般为 breakpoint
+- Disp 列代表断点被命中后，该断点保留(keep)、删除(del)还是关闭(dis)
+- Enb 列代表该断点是 enable(y) 还是 disable(n)
+- Address 列代表该断点处虚拟内存的地址
+- What 列代表该断点在源文件中的信息
+
+## **5 删除断点**
+
+*delete* 命令用于删除断点。
+
+## **删除指定断点**
+
+delete Num，删除指定断点，断点编号可通过 info breakpoints 获得：
+
+![img](assets/v2-45f028467c6bfeeee45aae11e4549a89_hd.png)
+
+## **删除所有断点**
+
+delete，不带任何参数，默认删除所有断点。
+
+## **6 关闭和启用断点**
+
+*disable* 命令用于关闭断点，有些断点可能暂时不需要但又不想删除，便可以 disable 该断点。
+
+*enable* 命令用于启用断点。
+
+## **关闭所有断点**
+
+disable，不带任何参数，默认关闭所有断点。
+
+## **关闭指定断点**
+
+disable Num，关闭指定断点，断点编号可通过 info breakpoints 获得：
+
+![img](assets/v2-c85d8a8e3a39a1e359f3c1dd17daf718_hd.png)
+
+## **启用所有断点**
+
+enable，不带任何参数，默认启用所有断点。
+
+## **启用指定断点**
+
+enable Num，启用指定断点，断点编号可通过 info breakpoints 获得。
+
+![img](assets/v2-d0206945706acbaf5f97fd7791fd1bfa_hd.png)
+
+**disable 和 enable 命令影响的是 info breakpoints 的 Enb 列，表示该断点是启用还是关闭**
+
+## **7 断点启用的更多方式**
+
+*enable* 命令还可以用来设置断点被执行的次数，比如当断点设在循环中的时候，某断点可能多次被命中。
+
+## **断点 hit 一次之后关闭该断点**
+
+```text
+enable once Num
+```
+
+## **断点 hit 一次之后删除该断点**
+
+```text
+enable delete Num
+```
+
+实验中我们可以如下图测试该功能：
+
+![img](assets/v2-c86c83b5af0c13c30054fd5e72fe7daf_hd.png)
+
+**这两个命令影响的是 info breakpoints 的 Disp 列，表示该断点被命中之后的行为**
+
+## **8 断点小结**
+
+断点是调试最基本的方法之一，这一节主要介绍了断点相关的知识。主要是几个断点相关的命令。
+
+- list
+- info breakpoints
+- break
+- delete
+- disable 和 enable
+- enable once 和 enable delete
+
+不熟悉命令的时候，记得在 gdb 命令行下键入 help info breakpoints 等命令，查询帮助文档。
+
+
+
+## **最后**
+
+文章所有内容均截选自实验楼教程[【GDB 简明教程】](https://link.zhihu.com/?target=https%3A//www.shiyanlou.com/courses/496)，教程还介绍了以下内容：
+
+- GDB 单步调试；
+- GDB 函数栈；
+- 对有问题的链表程序的调试来逐步实践挖掘程序 BUG 的过程；
+
+
+
+常用命令：
+
+1、打开GDB：gdb
+
+2、打开要调试的文件：file xxx
+
+设置参数：set args xxx xxx
+
+显示缺省的参数列表：show args
+
+3、在某处（第几行）下断点：break x
+
+删除N号断点：delete N
+
+*删除所有断点： delete
+
+4、单步调试，步入当前函数：s
+
+5、单步调试，步过当前函数：n
+
+6、打印xxx的内容：print xxx
+
+7、执行到当前函数返回：finish
+
+执行完当前的循环：until
+
+8、打印当前栈帧的本地变量：info locals
+
+9、反汇编一个函数：disassemble xxx
+
+10、查看当前运行的文件和行：backtrace
+
+11、继续运行程序直接运行到下一个断点：continue
+
+#### 1.2.5.2 PDB
+
+如果你还主要靠print来调试代码，那值得花10分钟试试pdb这个Python自带的Debug工具。
+
+pdb有2种用法：
+
+- **非侵入式方法**（不用额外修改源代码，在命令行下直接运行就能调试）
+
+```bash
+python3 -m pdb filename.py
+```
+
+- **侵入式方法**（需要在被调试的代码中添加一行代码然后再正常运行代码）
+
+```python3
+import pdb;pdb.set_trace()
+```
+
+当你在命令行看到下面这个提示符时，说明已经正确打开了pdb
+
+```text
+(Pdb) 
+```
+
+然后就可以开始输入pdb命令了，下面是pdb的常用命令
+
+## 1、查看源代码
+
+命令：
+
+```text
+l
+```
+
+说明：
+
+> 查看当前位置前后11行源代码（多次会翻页）
+> 当前位置在代码中会用-->这个符号标出来
+
+
+
+命令：
+
+```text
+ll
+```
+
+说明：
+
+> 查看当前函数或框架的所有源代码
+
+## 2、添加断点
+
+命令：
+
+```text
+b
+b lineno
+b filename:lineno 
+b functionname
+```
+
+参数：
+
+> filename文件名，断点添加到哪个文件，[如test.py](https://link.zhihu.com/?target=http%3A//xn--test-f96g.py/)
+> lineno断点添加到哪一行
+> function：函数名，在该函数执行的第一行设置断点
+
+说明：
+
+> 1.不带参数表示查看断点设置
+> 2.带参则在指定位置设置一个断点
+
+## 3、添加临时断点
+
+命令：
+
+```text
+tbreak
+tbreak lineno
+tbreak filename:lineno
+tbreak functionname
+```
+
+参数：
+
+> 同b
+
+说明：
+
+> 执行一次后时自动删除（这就是它被称为临时断点的原因）
+
+## 4、清除断点
+
+命令：
+
+```pycon
+cl
+cl filename:lineno
+cl bpnumber [bpnumber ...]
+```
+
+参数：
+
+> bpnumber 断点序号（多个以空格分隔）
+
+说明：
+
+> 1.不带参数用于清除所有断点，会提示确认（包括临时断点）
+> 2.带参数则清除指定文件行或当前文件指定序号的断点
+
+## 5、打印变量值
+
+命令：
+
+```text
+p expression
+```
+
+参数：
+
+> expression Python表达式
+
+## 6、逐行调试命令
+
+包括 s ，n ， r 这3个相似的命令，区别在如何对待函数上
+
+命令1：
+
+```text
+s
+```
+
+说明：
+
+> 执行下一行（能够进入函数体）
+
+
+
+命令2：
+
+```text
+n 
+```
+
+说明：
+
+> 执行下一行（不会进入函数体）
+
+
+
+命令3：
+
+```text
+r 
+```
+
+说明：
+
+> 执行下一行（在函数中时会直接执行到函数返回处）
+
+## 7、非逐行调试命令
+
+命令1：
+
+```text
+c 
+```
+
+说明：
+
+> 持续执行下去，直到遇到一个断点
+
+
+
+命令2
+
+```text
+unt lineno
+```
+
+说明：
+
+> 持续执行直到运行到指定行（或遇到断点）
+
+
+
+命令3
+
+```text
+j lineno
+```
+
+说明：
+
+> 直接跳转到指定行（注意，被跳过的代码不执行）
+
+## 8、查看函数参数
+
+命令：
+
+```text
+a
+```
+
+说明：
+
+> 在函数中时打印函数的参数和参数的值
+
+
+
+## 9、打印变量类型
+
+命令：
+
+```text
+whatis expression
+```
+
+说明：
+
+> 打印表达式的类型，常用来打印变量值
+
+## 10、启动交互式解释器
+
+```text
+interact
+```
+
+说明：
+
+> 启动一个python的交互式解释器，使用当前代码的全局命名空间（使用ctrl+d返回pdb）
+
+## 11、打印堆栈信息
+
+```text
+w
+```
+
+说明：
+
+> 打印堆栈信息，最新的帧在最底部。箭头表示当前帧。
+
+## 12、退出pdb
+
+```text
+q
+```
+
+
+
+完成了。好吧，可能超过了10分钟，我承认这是一个善意的谎言，不过至此你已经掌握了，击个掌吧。
+
+## 1.3 ARM（区别于服务器）
+
+### 1.3.1 Cortex-A76（差不多能做到i5-5200水平）
+
+处理器
+
+型号: HUAWEI Kirin 980 （麒麟980）
+
+核数: 八核
+
+主频: 2*Cortex-`A76` Based 2.6GHz+ 2*Cortex-`A76` Based 1.92GHz+ 4*Cortex-`A55` 1.8GHz
+
+GPU: Mali G76 720MHz
+
+NPU: 双NPU(神经网络处理单元)
+
+#### 1.3.1.1 性能对比
+
+具体来说，大家喜闻乐见的骁龙845 CPU部分就是基于ARM Cortex-A75和A55架构“改修”而来，上代的骁龙835 CPU本质上是ARM Cortex-A73的“变体”；而华为麒麟960、970等，更是原封不动地买来了公版的ARM CPU和GPU设计，就算是这三家中“原创度”最高的三星，旗舰芯片Exynos 9810的大核心是自己原创的，但是小核心也是ARM的公版Cortex-A55无误。
+
+对于Cortex-A76的性能，ARM官方资料提供了对比数据：Cortex-A76相比于“上上代”的Cortex-A73，整数性能提升了90%，浮点性能提升了150%，而综合起来的性能增幅也有80%。如果是和上一代的Cortex-A75相比，那么综合性能提升幅度也高达35%。
+
+同时，ARM还说，由于指令集层面上的改进，Cortex-A76运行“机器学习应用”时的性能最高可以提升400%，而在能效比上，新架构也有着高达40%的改进……
+
+#### 1.3.1.2 主频提升换来的性能涨幅（7nm-3GHz-5W）
+
+是不是觉得“很好很强大”，别急，让我们来做个简单的算术：
+
+在ARM的官方对比资料中，最新款的Cortex-A76测试平台使用了目前尚未量产的7nm制程，运行在3GHz频率下；而惨遭秒杀的“前前代”Cortex-A73则是基于现有的10nm制程，主频仅有2.45GHz，同样被拿来对比的Cortex-A75主频也是只跑到了2.8GHz——换言之，所谓“80%的性能提升”，其实并非同频率下测得，并不能完全反应架构革新带来的执行效率增加。
+
+因此，假设官方资料中的Cortex-A73性能指标为100（参考值），则可以算出，在相同频率下，全新的A76架构同频性能相比两代之前的A73，实际的提升程度是(180/3)/（100/2.45)-100%=47.02%；而如果和当下的A75架构相比，则实际同频性能提升则仅有（180/3)/(145/2.8)-100%=15.9%……
+
+一言以蔽之：只考虑架构上的改变的话，全新的Cortex-A76其实并没有比现有的Cortex-A75强很多。
+
+#### 1.3.1.3 i7-7700也靠提频（4.2-4.5GHZ-91W）
+
+同频性能不提升的情况下，直接拉升新处理器的主频，的确也是一种行之有效的性能提升办法。
+
+这方面典型的例子就是台式电脑上的英特尔酷睿i7 7700K与6700K之间的提升——英特尔自家都承认，7700K的同频性能相比6700K完全没变化。但是靠着高了10%的主频，7700K的实际性能就是比6700K高了10%。
+
+#### 1.3.1.4 绝大时间达不到主频
+
+在手机上，不管是多“旗舰”的SoC芯片，其在工作的绝大部分时间里都根本达不到标称的最高主频——2.8GHz的骁龙845，即便是在运行3DMARK这样的高负载跑分软件时，最高也只有2.3GHz的主频记录。
+
+更不要说3GHz的“Cortex-A76”了，就算用上了7nm制程，其真正在手机里，也绝不可能一直运行在3GHz下。换句话说，当这种性能“打折扣”的时候，它的实际体验会不会比前代旗舰们有明显的差异，其实就很难说了。
+
+#### 1.3.1.5 绝大时间达不到主频
+
+A11确实是基于ARM构架改动的，三星的9810也是一样，只不过这2家动手能力强点。
+
+### 1.3.2 ARM家族
+
+所谓处理器架构是CPU厂商给属于同一系列的CPU产品定的一个规范，主要目的是为了区分不同类型CPU的重要标示。目前市面上的CPU指令集分类主要分有两大阵营，一个是intel、AMD为首的复杂指令集CPU，另一个是以IBM、ARM为首的精简指令集CPU。不同品牌的CPU，其产品的架构也不相同。例如，Intel、AMD的CPU是X86架构的，而IBM公司的CPU是PowerPC架构，ARM公司是ARM架构。
+
+![ARM Cortex-Aç³»åå¤çå¨æ§è½å·®å¼å¯¹æ¯](assets/1472460435291167.png!0)
+
+​		如图所示，绿色的部分都是v7-A的架构，蓝色的是v8-A架构，基本上绿色都是可以支持到32和64位的，除了A32，只支持到32位。在右边的每个部分，比如说需要高效能的最上面的A15-A73这个部分是最高效的，接下来就是比较注重整个效率的部分了，中间那个部分是比较高效率的，最下面那栏的是效率最好的，在电池的效能方面达到了最好的标准。
+
+　　如果非要给他们一个排序的话，从高到低大体上可排序为：Cortex-A73处理器、Cortex-A72处理器、Cortex-A57处理器、Cortex-A53处理器、Cortex-A35处理器、Cortex-A32处理器、Cortex-A17处理器、Cortex-A15处理器、Cortex-A7处理器、Cortex-A9处理器、Cortex-A8处理器、Cortex-A5处理器。
+
+![ARM Cortex-A系列处理器性能差异对比](assets/1472539838631177.jpg!0)
+
+ 
+
+| 架构  | 处理器家族                                                   |
+| :---- | :----------------------------------------------------------- |
+| ARMv1 | [ARM1](http://zh.wikipedia.org/w/index.php?title=ARM1&action=edit&redlink=1) |
+| ARMv2 | [ARM2](http://zh.wikipedia.org/w/index.php?title=ARM2&action=edit&redlink=1)、[ARM3](http://zh.wikipedia.org/w/index.php?title=ARM3&action=edit&redlink=1) |
+| ARMv3 | ARM6, [ARM7](http://zh.wikipedia.org/wiki/ARM7)              |
+| ARMv4 | [StrongARM](http://zh.wikipedia.org/wiki/StrongARM)、[ARM7TDMI](http://zh.wikipedia.org/wiki/ARM7TDMI)、[ARM9](http://zh.wikipedia.org/wiki/ARM9)TDMI |
+| ARMv5 | [ARM7EJ](http://zh.wikipedia.org/w/index.php?title=ARM7EJ&action=edit&redlink=1)、[ARM9E](http://zh.wikipedia.org/w/index.php?title=ARM9E&action=edit&redlink=1)、[ARM10E](http://zh.wikipedia.org/w/index.php?title=ARM10E&action=edit&redlink=1)、[XScale](http://zh.wikipedia.org/wiki/XScale) |
+| ARMv6 | [ARM11](http://zh.wikipedia.org/w/index.php?title=ARM11&action=edit&redlink=1)、[ARM Cortex-M](http://zh.wikipedia.org/w/index.php?title=ARM_Cortex-M&action=edit&redlink=1) |
+| ARMv7 | [ARM Cortex-A](http://zh.wikipedia.org/w/index.php?title=ARM_Cortex-A&action=edit&redlink=1)、[ARM Cortex-M](http://zh.wikipedia.org/w/index.php?title=ARM_Cortex-M&action=edit&redlink=1)、[ARM Cortex-R](http://zh.wikipedia.org/w/index.php?title=ARM_Cortex-R&action=edit&redlink=1) |
+| ARMv8 | Cortex-A50[[9\]](http://zh.wikipedia.org/wiki/ARM架構#cite_note-cortex-a50_announce-9) |
+
+
+
+　
+
+
+
+## 1.4 海思系列
+
+### 1.4.1 Hi3559AV100（至少达到3个tx1的水平）
+
+Hi3559AV100 硬件信息
+
+CPU:
+
+双核 ARM Cortex A73@1.8GHz，32KB I-Cache，64KB D-Cache /512KB L2 cache
+
+双核 ARM Cortex A53@1.2GHz，32KB I-Cache，32KB D-Cache /256KB L2 cache
+
+单核 ARM Cortex A53@1.2GHz，32KB I-Cache，32KB D-Cache /128KB L2 cache
+
+支持 Neon 加速，集成 FPU 处理单元
+
+GPU:
+
+双核 ARM Mali G71@900MHz，256KB cache
+
+支持 OpenCL 1.1/1.2/2.0
+
+支持 OpenGL ES 3.0/3.1/3.2
+
+智能视频分析：
+
+提供视觉计算处理能力
+
+四核 DSP@700MHz，32K I-Cache /32K IRAM/512KB DRAM
+
+双核 NNIE@840MHz 神经网络加速引擎
+
+内置双目深度检测单元
+
+
+
+测试网络信息
+
+googlenet 5ms
+
+resnet50 10.5ms
+
+vgg16 35ms
+
+squeezenet 2.8ms
+
+alexnet 9ms
+
+#### 1.4.1.1
+
+#### 1.4.1.2 其他
+
+NNIE的问题，一共1024个MAC，常压频率840MHZ，双核，可以基于caffe直接编程
 
 # 2 Windows
 
+## 2.1 命令行
+
+##  2.2 批处理
 
 
-# 3 底层基础
+
+
+
+# 3 软件层（侧重协议、概念）
 
 ## 3.1 shell、bash 和 zsh 等词的真正含义
 
@@ -324,7 +1269,7 @@ PubkeyAuthentication  yes
 
 > 注意：如果在第3步时为秘钥设置了密码，则使用秘钥登录服务器时，需要输入秘钥密码。
 
-## 3.2.6 ssh其他操作
+### 3.2.6 ssh其他操作
 
 1. 如果想实现免密登录，则只需要在第三步生成密钥对时不要设置秘钥密码。
 2. 如果使用秘钥文件使用默认文件名（id_rsa），则在使用ssh的过程中就不需要再使用-i开关来指定秘钥文件了。
@@ -506,7 +1451,7 @@ NT系统中用得最多的。因特网上的每一台计算机都有一个网络
 （3）. FTP协议代理服务器常用端口号：21 
 （4）. Telnet协议代理服务器常用端口：23
 
-# 3.8 TCP/IP、Http、Socket区别
+## 3.8 TCP/IP、Http、Socket区别
 
 前两个是协议，但是layer 都不一样 。
 而socket 完全不同的东西，是指通讯中的结点。
@@ -530,194 +1475,30 @@ http是一种应用层协议，它使用tcp协议提供的服务。tcp协议是�
 
 socket则是tcp/ip中运输层tcp和udp协议中的一个实现寻址的重要实现。具体来说，IP是用来定位网络上的一台计算机，那这台计算机上运行这好多服务怎么定位呢?答案就是socket。
 
-1=tcpmux（TCP协议 Port Service
-
-Multiplexer）401=ups（Uninterruptible Power
-
-Supply）
-
-2=compressnet=Management Utility402=genie（Genie Protocol）
-
-3=compressnet=Compression Process403=decap
-
-5=rje（Remote Job Entry）404=nced
-
-7=echo=Echo405=ncld
-
-9=discard406=imsp（Interactive Mail Support Protocol）
-
-11=systat,Active Users407=timbuktu
-
-13=daytime408=prm-sm（Prospero Resource Manager Sys. Man.）
-
-17=qotd（Quote of the Day）409=prm-nm（Prospero Resource Manager
-
-Node Man.）
-
-18=msp（Message Send Protocol）410=decladebug（DECLadebug Remote
-
-Debug
-
-Protocol）
-
-19=Character Generator411=rmt（Remote MT Protocol）
-
-20=FTP-data（File Transfer [Default
-
-Data]）412=synoptics-trap（Trap
-
-Convention Port）
-
-21=FTP（File Transfer [Control]）413=smsp
-
-22=ssh414=infoseek
-
-23=telnet415=bnet
-
-24private mail system416=silverplatter
-
-25=smtp（Simple Mail Transfer）417=onmux
-
-27=nsw-fe（NSW User System FE）418=hyper-g
-
-29=msg-icp419=ariel1
-
-31=msg-auth420=smpte
-
-33=Display Support Protocol421=ariel2
-
-35=private printer server422=ariel3
-
-37=time423=opc-job-start（IBM Operations Planning and Control
-
-Start）
-
-38=rap（Route Access Protocol）424=opc-job-track（IBM Operations
-
-Planning and
-
-Control Track）
-
-39=rlp（Resource Location Protocol）425=icad-el（ICAD）
-
-41=graphics426=smartsdp
-
-42=nameserver（WINS Host Name Server）427=svrloc（Server
-
-Location）
-
-43=nicname（Who Is）428=ocs_cmu
-
-44=mpm-flags（MPM FLAGS Protocol）429=ocs_amu
-
-45=mpm（Message Processing Module [recv]）430=utmpsd
-
-46=mpm-snd（MPM [default send]）431=utmpcd
-
-47=ni-ftp432=iasd
-
-48=Digital Audit Daemon433=nnsp
-
-49=tacacs（Login Host Protocol （TACACS））434=mobileip-agent
-
-50=re-mail-ck（Remote Mail Checking Protocol）435=mobilip-mn
-
-51=la-maint（IMP Logical Address Maintenance）436=dna-cml
-
-52=xns-time（XNS Time Protocol）437=comscm
-
-53=Domain Name Server438=dsfgw
-
-54=xns-ch（XNS Clearinghouse）439=dasp（dasp Thomas Obermair）
-
-55=isi-gl（ISI Graphics Language）440=sgcp
-
-56=xns-auth（XNS Authentication）441=decvms-sysmgt
-
-57= private terminal access442=cvc_hostd
-
-58=xns-mail（XNS Mail）443=https（https Mcom）
-
-59=private file service444=snpp（Simple Network Paging Protocol）
-
-61=ni-mail（NI MAIL）445=microsoft-ds
-
-62=acas（ACA Services）446=ddm-rdb
-
-63=whois+whois+447=ddm-dfm
-
-64=covia（Communications Integrator （CI））448=ddm-byte
-
-65=tacacs-ds（TACACS-Database Service）449=as-servermap
-
-66=sql*net（Oracle SQL*NET）450=tserver
-
-67=bootps（Bootstrap Protocol Server）451=sfs-smp-net（Cray
-
-Network Semaphore
-
-server）
-
-68=bootpc（Bootstrap Protocol Client）452=sfs-config（Cray SFS
-
-config server）
-
-69=tftp（Trivial File Transfer）453=creativeserver
-
-70=gopher454=contentserver
-
-71=netrjs-1,Remote Job Service455=creativepartnr
-
-72=netrjs-2,Remote Job Service456=macon-tcp
-
-73=netrjs-3,Remote Job Service457=scohelp
-
-74=netrjs-4,Remote Job Service458=appleqtc（apple quick time）
-
-75=private dial out service459=ampr-rcmd
-
-76=deos（Distributed External Object Store）460=skronk
-
-77=private RJE service461=datasurfsrv
-
-78=vettcp462=datasurfsrvsec
-
-79=finger463=alpes
-
-80=http（World Wide Web HTTP）464=kpasswd
-
-81=hosts2-ns（HOSTS2 Name Server）465=ssmtp
-
-82=xfer（XFER Utility）466=digital-vrc
-
-83=mit-ml-dev（MIT ML Device）467=mylex-mapd
-
-84=ctf（Common Trace Facility）468=photuris
-
-85=mit-ml-dev（MIT ML Device）469=rcp（Radio Control Protocol）
-
-86=mfcobol（Micro Focus Cobol）470=scx-proxy
-
-&nbs
-
-# 4 工具和设置
+# 4 工具和设置（侧重实际应用和技巧）
 
 ## 4.1 SSH连接云服务器
 
 ### 4.1.1 服务端设置
 
+查看ssh服务的状态
+
+```bash
+service sshd status
+```
+
 #### 4.1.1.1 安装openssh-server
 
 首先在服务器上安装SSH的服务器端。
 
-```
-$ sudo aptitude install openssh-server
+```bash
+apt-get install openssh-server
 ```
 
 #### 4.1.1.2 启动ssh-server
 
-```
-$ /etc/init.d/ssh restart
+```bash
+service ssh start
 ```
 
 #### 4.1.1.3 确认ssh-server
@@ -725,11 +1506,10 @@ $ /etc/init.d/ssh restart
 确认ssh-server是否正常工作
 
 ```shell
-$ netstat -tlp
-tcp6 0 0 *:ssh *:* LISTEN -
+sudo ps -e | grep ssh-
 ```
 
-上面这一行就说明`ssh-server`已经在运行了。
+说明`ssh-server`已经在运行了。
 
 ### 4.1.2 服务端设置
 
@@ -751,34 +1531,143 @@ $ ssh -l name 113.112.23.124
 
 ## 4.2 NFS服务器设置
 
-NFS服务器的设定可以通过/etc/exports这个文件进行，设定格式如下：
+Ubuntu 16.04 安装命令为：
 
-分享目录      主机名称或者IP(参数1，参数2）
+```bash
+# 服务端
+apt install nfs-kernel-server
+# 客户端
+apt install nfs-common
+```
 
-/arm2410s   10.22.22.*(rw,sync,no_root_squash)
+### 4.2.1服务器端
 
-可以设定的参数主要有以下这些：
+1、修改 NFS 配置文件 `/etc/exports`
 
-rw：可读写的权限； 
-ro：只读的权限； 
-no_root_squash：登入到NFS主机的用户如果是root，该用户即拥有root权限；
-root_squash：登入NFS主机的用户如果是root，该用户权限将被限定为匿名使用者nobody； 
-all_squash：不管登陆NFS主机的用户是何权限都会被重新设定为匿名使用者nobody。 
-anonuid：将登入NFS主机的用户都设定成指定的user id，此ID必须存在于/etc/passwd中。 
-anongid：同anonuid，但是变成group ID就是了！ 
-sync：资料同步写入存储器中。 
-async：资料会先暂时存放在内存中，不会直接写入硬盘。 
-insecure：允许从这台机器过来的非授权访问。 
+```bash
+$ vim /etc/exports
+/data/share 10.222.77.0/24(rw,sync,insecure,no_subtree_check,no_root_squash)
+```
 
-例如可以编辑/etc/exports为： 
-/tmp　　　　　*(rw,no_root_squash) 
-/home/public　192.168.0.*(rw)　　 *(ro) 
-/home/test　　192.168.0.100(rw) 
-/home/linux　 *.the9.com(rw,all_squash,anonuid=40,anongid=40) 
+允许 IP 为该 `10.222.77.0/24` 区间的客户端挂载。
 
-# 5 软件配置
+例如：
 
-## 5.1 anaconda源
+```
+/home *(ro,sync,insecure,no_root_squash)
+/share 192.168.1.*(rw,sync,insecure,no_subtree_check,no_root_squash)
+```
+
+| 参数             | 说明                                                         |
+| ---------------- | ------------------------------------------------------------ |
+| ro               | 只读访问                                                     |
+| rw               | 读写访问                                                     |
+| sync             | 所有数据在请求时写入共享                                     |
+| async            | nfs在写入数据前可以响应请求                                  |
+| secure           | nfs通过1024以下的安全TCP/IP端口发送                          |
+| insecure         | nfs通过1024以上的端口发送                                    |
+| wdelay           | 如果多个用户要写入nfs目录，则归组写入（默认）                |
+| no_wdelay        | 如果多个用户要写入nfs目录，则立即写入，当使用async时，无需此设置 |
+| hide             | 在nfs共享目录中不共享其子目录                                |
+| no_hide          | 共享nfs目录的子目录                                          |
+| subtree_check    | 如果共享/usr/bin之类的子目录时，强制nfs检查父目录的权限（默认） |
+| no_subtree_check | 不检查父目录权限                                             |
+| all_squash       | 共享文件的UID和GID映射匿名用户anonymous，适合公用目录        |
+| no_all_squash    | 保留共享文件的UID和GID（默认）                               |
+| root_squash      | root用户的所有请求映射成如anonymous用户一样的权限（默认）    |
+| no_root_squash   | root用户具有根目录的完全管理访问权限                         |
+| anonuid=xxx      | 指定nfs服务器/etc/passwd文件中匿名用户的UID                  |
+| anongid=xxx      | 指定nfs服务器/etc/passwd文件中匿名用户的GID                  |
+
+- 注1：尽量指定主机名或IP或IP段最小化授权可以访问NFS 挂载的资源的客户端
+- 注2：经测试参数insecure必须要加，否则客户端挂载出错mount.nfs: access denied by server while mounting
+
+2、执行命令使修改文件生效 
+
+```bash
+exprotfs -rv 
+```
+
+3、关闭服务端防火墙 
+
+```bash
+iptables -F
+```
+
+重启防火墙：service iptables restart   
+
+查看状态：service iptables status
+
+关闭防火墙：service iptables stop
+
+4、启动服务：执行 
+
+```bash
+service nfs restart 
+service portmap restart 
+```
+
+在服务端看下是否正确加载了设置的 `/etc/exports` 配置。
+
+```bash
+$ showmount -e localhost
+Export list for localhost:
+/data/share 10.222.77.0/24
+```
+
+可能遇到的问题：
+
+ubuntu 10.0开启配置nfs 服务service nfs start时出现：Failed to start nfs.service: Unit nfs.service not found.
+
+原因是ubuntu 10.0以上的版本取消了service nfs start。
+
+改成了service nfs-server start 。这样就完成启动了。
+
+在执行service nfs-server status就可以看到。
+
+### 4.2.2客户端
+
+测试，在另一台 Linux 虚拟机上测试一下，是否能够正确挂载吧。我们可以在客户端查看下 NFS 服务端 (上边服务端 IP 为：10.222.77.86) 设置可共享的目录信息。
+
+```bash
+showmount -e 10.222.77.86
+Export list for 10.222.77.86:
+/data/share 10.222.77.0/24
+```
+
+挂载执行命令： 
+1、启动服务： 
+
+```bash
+service nfs restart 
+service portmap restart 
+```
+
+2、 挂载
+
+```bash
+mount 172.16.203.246:/srv/www/app/wtcms/webroot/main /srv/www/app/wtweb/webroot/main -nolock -t nfs
+```
+
+其中，172.16.203.246 是服务端的ip    
+/srv/www/app/wtcms/webroot/main  服务端共享的目录 
+/srv/www/app/wtweb/webroot/main  客户端目录（一定要有此目录） 
+
+3、取消挂载： 
+
+```bash
+umount  /srv/www/app/wtweb/webroot/main #（与mount一样的目录）   
+```
+
+客户端目录（一定要有此目录）  
+
+# 5 软件配置（经验性设置、避坑）
+
+## 5.1 关于配置，提高效率
+
+网速更快啊，使用更爽、更流畅等等等。
+
+### 5.1.1 anaconda源
 
 channels:
 
@@ -810,6 +1699,38 @@ conda config --remove-key channels
 
 查看源
 conda config --show
+
+
+
+## 5.2 好用的工具
+
+clover
+
+ditto  
+
+sourceinsight
+
+notepad++
+
+Typora
+
+everything
+
+pycharm
+
+vscode
+
+git
+
+Mobaxtem
+
+xshell
+
+bitComet
+
+Anaconda
+
+snapnet
 
 
 
