@@ -1695,6 +1695,14 @@ channels:
 show_channel_urls: true
 ```
 
+```
+conda config --add channels https://mirrors.ustc.edu.cn/anaconda/pkgs/main/
+conda config --add channels https://mirrors.ustc.edu.cn/anaconda/cloud/conda-forge/
+conda config --add channels https://mirrors.tuna.tsinghua.edu.cn/anaconda/pkgs/free/
+conda config --set show_channel_urls yes
+
+```
+
 删源
 
 换回conda的默认源。查看了conda config的文档后，发现直接删除channels即可。
@@ -1738,7 +1746,7 @@ snapaster
 
 openhub for github
 
-# 特别好用的工具
+Q-dir
 
 ## 1.1 everything
 
@@ -1770,3 +1778,10 @@ Clover 通过插件的形式集成到 Windows Explorer，保留您通常的使�
 
 [Ditto](https://ditto-cp.sourceforge.io/)  是一款强大的 Windows 剪贴板增强工具，开启 Ditto 后，不会有任何程序界面出现，它只是默默地在系统右下角弹出了一个蓝色的托盘图标，这时候你复制任何内容到剪贴板都会被 Ditto 一一记录。如果你什么时候想找到它，就可以按 Ctrl+`，当中的每条内容都可以供你选择性的重新复制。
 
+
+
+## 5.3 常用网站
+
+ (.prototxt)在线可视化工具：
+
+https://ethereon.github.io/netscope/#/editor
